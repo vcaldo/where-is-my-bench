@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -56,14 +57,25 @@ func locationHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	redisDB, _ := strconv.Atoi(cfg.RedisDB)
 	rdb := redis.NewBenchStore(cfg.RedisAddr, cfg.RedisPassword, redisDB)
 
-	benchs, err := rdb.FindNearby(ctx, update.Message.Location.Latitude, update.Message.Location.Longitude, 100)
+	benches, err := rdb.FindNearby(ctx, update.Message.Location.Latitude, update.Message.Location.Longitude, 100)
 	if err != nil {
 		txn.NoticeError(err)
 		log.Printf("error finding benches: %v", err)
 		return
 	}
 
-	msg := fmt.Sprintf("Found %d benches", len(benchs))
+	var nearbyBenches []string
+	for _, b := range benches {
+		bench, err := rdb.GetBenchByID(ctx, b.GisID)
+		if err != nil {
+			txn.NoticeError(err)
+			log.Printf("error getting bench by id: %v", err)
+			return
+		}
+
+		nearbyBenches = append(nearbyBenches, fmt.Sprintf("Banc %s a %s", bench.StreetName, bench.StreetNumber))
+	}
+	msg := fmt.Sprintf("He trobat %d bancs a prop teu:\n\n%s", len(nearbyBenches), strings.Join(nearbyBenches, "\n"))
 
 	sendMessage(ctx, b, update.Message.Chat.ID, msg)
 }
