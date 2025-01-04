@@ -1,0 +1,43 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Environment files
+*.env
+.env*
+!.env.example
+
+# Go specific
+vendor/
+.idea/
+.vscode/
+*.sum
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Test cache
+coverage.txt
+coverage.html
+
+# Debug files
+debug
+*.log
+
+# Binary output directories
+bin/
+dist/
+build/
