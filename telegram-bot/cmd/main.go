@@ -73,7 +73,7 @@ func main() {
 		cancel()
 	}()
 
-	//debug
+	//debug, remove later
 	data, err := os.ReadFile("bancos.json")
 	if err != nil {
 		log.Fatalf("error reading bancos.json: %v", err)
