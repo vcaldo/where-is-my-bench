@@ -11,11 +11,6 @@ import (
 )
 
 func Handler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	txn := newrelic.FromContext(ctx)
-
-	txn.AddAttribute("chat_id", update.Message.Chat.ID)
-	txn.AddAttribute("user_id", update.Message.From.ID)
-
 	switch {
 	case update.Message != nil && update.Message.Text == "/start":
 		startHandler(ctx, b, update)
@@ -55,6 +50,5 @@ func locationHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	txn.AddAttribute("location_lat", lat)
 	txn.AddAttribute("location_lon", lon)
 
-	log.Printf("received location: %f, %f", lat, lon)
 	sendMessage(ctx, b, update.Message.Chat.ID, fmt.Sprintf("lat: %f, lon: %f", lat, lon))
 }

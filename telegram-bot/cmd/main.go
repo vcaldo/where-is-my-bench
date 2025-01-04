@@ -48,7 +48,6 @@ func main() {
 		bot.WithDefaultHandler(func(ctx context.Context, b *bot.Bot, update *models.Update) {
 			// Create new transaction for each update
 			updateTxn := nrApp.StartTransaction("bot_update")
-			updateTxn.AddAttribute("chat_id", update.Message.Chat.ID)
 			updateTxn.AddAttribute("update_type", "message")
 
 			updateCtx := newrelic.NewContext(ctx, updateTxn)
