@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/vcaldo/where-is-my-bench/telegram-bot/internal/config"
 	"github.com/vcaldo/where-is-my-bench/telegram-bot/internal/handlers"
+	"github.com/vcaldo/where-is-my-bench/telegram-bot/internal/storage/redis"
 	"github.com/vcaldo/where-is-my-bench/telegram-bot/pkg/bench"
 	"github.com/vcaldo/where-is-my-bench/telegram-bot/pkg/telegram"
 )
@@ -71,6 +73,7 @@ func main() {
 		cancel()
 	}()
 
+	//debug
 	data, err := os.ReadFile("bancos.json")
 	if err != nil {
 		log.Fatalf("error reading bancos.json: %v", err)
@@ -80,8 +83,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("error loading benches: %v", err)
 	}
-	for _, b := range benches {
-		log.Printf("bench: %v", b.StreetName)
+	redisDB, _ := strconv.Atoi(cfg.RedisDB)
+	rdb := redis.NewBenchStore(cfg.RedisAddr, cfg.RedisPassword, redisDB)
+
+	err = rdb.StoreBenches(ctx, benches)
+	if err != nil {
+		log.Fatalf("error storing benches: %v", err)
 	}
 
 	<-sigChan

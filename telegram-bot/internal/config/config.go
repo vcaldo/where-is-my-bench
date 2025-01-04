@@ -15,6 +15,7 @@ type Config struct {
 	// Redis settings
 	RedisAddr     string `json:"redis_addr"`
 	RedisPassword string `json:"redis_password"`
+	RedisDB       string `json:"redis_db"`
 
 	// New Relic settings
 	NewRelicLicenseKey string `json:"new_relic_license_key"`
@@ -31,6 +32,7 @@ func LoadConfig() (*Config, error) {
 		TelegramToken:      os.Getenv("TELEGRAM_BOT_TOKEN"),
 		RedisAddr:          getEnvOrDefault("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:      os.Getenv("REDIS_PASSWORD"),
+		RedisDB:            getEnvOrDefault("REDIS_DB", "0"),
 		NewRelicLicenseKey: os.Getenv("NEW_RELIC_LICENSE_KEY"),
 		NewRelicAppName:    getEnvOrDefault("NEW_RELIC_APP_NAME", "Where is my bench bot"),
 		Environment:        getEnvOrDefault("ENVIRONMENT", "production"),
