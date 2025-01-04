@@ -77,5 +77,6 @@ func locationHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	}
 	msg := fmt.Sprintf("I found %d benches near you:\n\n%s", len(nearbyBenches), strings.Join(nearbyBenches, "\n"))
 
+	sendMessage(ctx, b, update.Message.Chat.ID, "🪑")
 	sendMessage(ctx, b, update.Message.Chat.ID, msg)
 }
