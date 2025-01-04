@@ -41,3 +41,6 @@ debug
 bin/
 dist/
 build/
+
+# Ignore json files
+*.json
