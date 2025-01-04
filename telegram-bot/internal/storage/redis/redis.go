@@ -26,10 +26,35 @@ func NewBenchStore(addr string, password string, db int) *BenchStore {
 func (s *BenchStore) StoreBenches(ctx context.Context, benches []bench.Bench) error {
 	pipe := s.rdb.Pipeline()
 	for _, b := range benches {
+		// Store geospatial data
 		pipe.GeoAdd(ctx, benchesKey, &redis.GeoLocation{
 			Name:      b.GisID,
 			Longitude: b.Longitude,
 			Latitude:  b.Latitude,
+		})
+
+		// Store complete bench data in hash
+		benchKey := fmt.Sprintf("bench:%s", b.GisID)
+		pipe.HSet(ctx, benchKey, map[string]interface{}{
+			"type":              b.Type,
+			"code":              b.Code,
+			"description":       b.Description,
+			"manufacturer":      b.Manufacturer,
+			"district_code":     b.DistrictCode,
+			"district_name":     b.DistrictName,
+			"neighborhood_code": b.NeighborhoodCode,
+			"neighborhood_name": b.NeighborhoodName,
+			"zone":              b.Zone,
+			"street_name":       b.StreetName,
+			"street_number":     b.StreetNumber,
+			"x_etrs89":          b.XETRS89,
+			"y_etrs89":          b.YETRS89,
+			"geometry_etrs89":   b.GeometryETRS89,
+			"longitude":         b.Longitude,
+			"latitude":          b.Latitude,
+			"geometry_wgs84":    b.GeometryWGS84,
+			"created_at":        b.CreatedAt,
+			"deleted_at":        b.DeletedAt,
 		})
 	}
 	_, err := pipe.Exec(ctx)
