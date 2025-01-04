@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/vcaldo/where-is-my-bench/telegram-bot/pkg/bench"
@@ -80,5 +81,45 @@ func (s *BenchStore) FindNearby(ctx context.Context, lat, lon float64, radiusMet
 			Latitude:  loc.Latitude,
 		}
 	}
+
 	return benches, nil
+}
+
+func (s *BenchStore) GetBenchByID(ctx context.Context, gisID string) (*bench.Bench, error) {
+	benchKey := fmt.Sprintf("bench:%s", gisID)
+	data, err := s.rdb.HGetAll(ctx, benchKey).Result()
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	bench := &bench.Bench{
+		GisID:            gisID,
+		Type:             data["type"],
+		Code:             data["code"],
+		Description:      data["description"],
+		Manufacturer:     data["manufacturer"],
+		DistrictCode:     data["district_code"],
+		DistrictName:     data["district_name"],
+		NeighborhoodCode: data["neighborhood_code"],
+		NeighborhoodName: data["neighborhood_name"],
+		Zone:             data["zone"],
+		StreetName:       data["street_name"],
+		StreetNumber:     data["street_number"],
+		XETRS89:          data["x_etrs89"],
+		YETRS89:          data["y_etrs89"],
+		GeometryETRS89:   data["geometry_etrs89"],
+		GeometryWGS84:    data["geometry_wgs84"],
+	}
+
+	if lat, err := strconv.ParseFloat(data["latitude"], 64); err == nil {
+		bench.Latitude = lat
+	}
+	if lon, err := strconv.ParseFloat(data["longitude"], 64); err == nil {
+		bench.Longitude = lon
+	}
+
+	return bench, nil
 }
