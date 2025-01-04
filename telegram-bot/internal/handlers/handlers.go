@@ -73,9 +73,9 @@ func locationHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 			return
 		}
 
-		nearbyBenches = append(nearbyBenches, fmt.Sprintf("Banc %s a %s", bench.StreetName, bench.StreetNumber))
+		nearbyBenches = append(nearbyBenches, fmt.Sprintf("Bench at %s, %s", bench.StreetName, bench.StreetNumber))
 	}
-	msg := fmt.Sprintf("He trobat %d bancs a prop teu:\n\n%s", len(nearbyBenches), strings.Join(nearbyBenches, "\n"))
+	msg := fmt.Sprintf("I found %d benches near you:\n\n%s", len(nearbyBenches), strings.Join(nearbyBenches, "\n"))
 
 	sendMessage(ctx, b, update.Message.Chat.ID, msg)
 }
