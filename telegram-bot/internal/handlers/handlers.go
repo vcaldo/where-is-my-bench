@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -32,6 +31,15 @@ func Handler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	case update.Message != nil && update.Message.Location != nil:
 		locationHandler(ctx, cfg, b, update)
 	case update.Message != nil && update.Message.Text == "/update_benches":
+		if !isAdmin(ctx, cfg.AdminUserID, update.Message.From.ID) {
+			log.Printf("unauthorized admin command received: %s\n %d not equal %d", update.Message.Text, cfg.AdminUserID, update.Message.From.ID)
+			err := sendMessage(ctx, b, update.Message.Chat.ID, "You are not authorized to perform this action.")
+			if err != nil {
+				log.Printf("error sending message: %v", err)
+			}
+			return
+		}
+		log.Printf("authorized admin command received: %s", update.Message.Text)
 		updateBenchesHandler(ctx, cfg, b, update)
 	}
 }
@@ -57,8 +65,7 @@ func locationHandler(ctx context.Context, cfg *config.Config, b *bot.Bot, update
 	segment := txn.StartSegment("command.location")
 	defer segment.End()
 
-	redisDB, _ := strconv.Atoi(cfg.RedisDB)
-	rdb := redis.NewBenchStore(cfg.RedisAddr, cfg.RedisPassword, redisDB)
+	rdb := redis.NewBenchStore(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
 
 	benches, err := rdb.FindNearby(ctx, update.Message.Location.Latitude, update.Message.Location.Longitude, searchRadius)
 	if err != nil {
@@ -147,8 +154,7 @@ func updateBenchesHandler(ctx context.Context, cfg *config.Config, b *bot.Bot, u
 
 	log.Printf("Found %d benches, updating redis", len(benches))
 
-	redisDB, _ := strconv.Atoi(cfg.RedisDB)
-	rdb := redis.NewBenchStore(cfg.RedisAddr, cfg.RedisPassword, redisDB)
+	rdb := redis.NewBenchStore(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
 
 	err = rdb.DeleteAllBenches(ctx)
 	if err != nil {

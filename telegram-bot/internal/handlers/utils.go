@@ -57,3 +57,14 @@ func removeImage(ctx context.Context, imgPath string) error {
 	}
 	return nil
 }
+
+func isAdmin(ctx context.Context, adminUserID, userID int64) bool {
+	txn := newrelic.FromContext(ctx)
+	segment := txn.StartSegment("is_admin")
+	defer segment.End()
+
+	if adminUserID == 0 {
+		return false
+	}
+	return adminUserID == userID
+}
