@@ -69,7 +69,7 @@ func (m *MapGenerator) GenerateMap(ctx context.Context, lat, lon, radius float64
 		return "", err
 	}
 	segment.End()
-	filename := fmt.Sprintf("%d-map_%f_%f.png", time.Now().Unix(), lat, lon)
+	filename := fmt.Sprintf("%d-map_%f_%f.png", time.Now().UnixMilli(), lat, lon)
 	f, err := os.Create(filename)
 	if err != nil {
 

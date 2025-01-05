@@ -71,7 +71,6 @@ func (s *BenchStore) FindNearby(ctx context.Context, lat, lon float64, radiusMet
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("found %d benches\n", len(locs))
 
 	benches := make([]bench.Bench, len(locs))
 	for i, loc := range locs {
