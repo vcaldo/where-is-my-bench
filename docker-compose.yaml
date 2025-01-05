@@ -7,5 +7,13 @@ services:
     ports:
       - 6379:6379
     restart: unless-stopped
+  where-is-my-bench-bot:
+    build: .
+    container_name: where-is-my-bench-bot
+    env_file:
+      - docker.env
+    restart: unless-stopped
+    depends_on:
+      - redis
 volumes:
   redis-data:
