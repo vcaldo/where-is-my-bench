@@ -20,7 +20,6 @@
 vendor/
 .idea/
 .vscode/
-*.sum
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
@@ -41,6 +40,3 @@ debug
 bin/
 dist/
 build/
-
-# Ignore json files
-*.json
