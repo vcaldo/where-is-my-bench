@@ -28,7 +28,6 @@ func (d *Downloader) DownloadJSON(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	// Create external segment
 	segment := newrelic.StartExternalSegment(txn, req)
 	defer segment.End()
 
@@ -39,7 +38,6 @@ func (d *Downloader) DownloadJSON(ctx context.Context) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	// Add response attributes
 	txn.AddAttribute("http.status_code", resp.StatusCode)
 	txn.AddAttribute("http.url", d.url)
 	txn.AddAttribute("http.method", "GET")

@@ -62,14 +62,12 @@ func main() {
 	}
 	segment.End()
 
-	// Start bot in goroutine
 	errChan := make(chan error, 1)
 	go func() {
 		log.Println("Bot started successfully")
 		b.Start(ctx)
 	}()
 
-	// Wait for shutdown signal or error
 	select {
 	case <-sigChan:
 		log.Println("Shutdown signal received, initiating graceful shutdown...")
