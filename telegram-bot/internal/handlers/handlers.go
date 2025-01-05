@@ -11,6 +11,7 @@ import (
 	"github.com/go-telegram/bot/models"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/vcaldo/where-is-my-bench/telegram-bot/internal/config"
+	"github.com/vcaldo/where-is-my-bench/telegram-bot/internal/downloader"
 	"github.com/vcaldo/where-is-my-bench/telegram-bot/internal/storage/redis"
 	"github.com/vcaldo/where-is-my-bench/telegram-bot/pkg/bench"
 	"github.com/vcaldo/where-is-my-bench/telegram-bot/pkg/maps"
@@ -19,12 +20,19 @@ import (
 const searchRadius float64 = 250
 
 func Handler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Printf("error loading config: %v", err)
+		return
+	}
+
 	switch {
 	case update.Message != nil && update.Message.Text == "/start":
 		startHandler(ctx, b, update)
-	case
-		update.Message != nil && update.Message.Location != nil:
-		locationHandler(ctx, b, update)
+	case update.Message != nil && update.Message.Location != nil:
+		locationHandler(ctx, cfg, b, update)
+	case update.Message != nil && update.Message.Text == "/update_benches":
+		updateBenchesHandler(ctx, cfg, b, update)
 	}
 }
 
@@ -44,17 +52,10 @@ func startHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	}
 }
 
-func locationHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func locationHandler(ctx context.Context, cfg *config.Config, b *bot.Bot, update *models.Update) {
 	txn := newrelic.FromContext(ctx)
 	segment := txn.StartSegment("command.location")
 	defer segment.End()
-
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		txn.NoticeError(err)
-		log.Printf("error loading config: %v", err)
-		return
-	}
 
 	redisDB, _ := strconv.Atoi(cfg.RedisDB)
 	rdb := redis.NewBenchStore(cfg.RedisAddr, cfg.RedisPassword, redisDB)
@@ -109,5 +110,65 @@ func locationHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if err != nil {
 		txn.NoticeError(err)
 		log.Printf("error removing image: %v", err)
+	}
+}
+
+func updateBenchesHandler(ctx context.Context, cfg *config.Config, b *bot.Bot, update *models.Update) {
+	txn := newrelic.FromContext(ctx)
+	segment := txn.StartSegment("command.location")
+	defer segment.End()
+
+	d := downloader.NewDownloader(cfg.BenchesDatasetURL)
+	data, err := d.DownloadJSON(ctx)
+	if err != nil {
+		txn.NoticeError(err)
+		log.Printf("error downloading JSON: %v", err)
+		return
+	}
+
+	benches, err := bench.LoadBenches(ctx, data)
+	if err != nil {
+		txn.NoticeError(err)
+		log.Printf("error loading benches: %v", err)
+		return
+	}
+
+	if len(benches) == 0 {
+		log.Printf("no benches found in the dataset %s, skipping update", cfg.BenchesDatasetURL)
+
+		msg := "No benches found in the dataset, skipping update."
+		err = sendMessage(ctx, b, update.Message.Chat.ID, msg)
+		if err != nil {
+			txn.NoticeError(err)
+			log.Printf("error sending message: %v", err)
+		}
+		return
+	}
+
+	log.Printf("Found %d benches, updating redis", len(benches))
+
+	redisDB, _ := strconv.Atoi(cfg.RedisDB)
+	rdb := redis.NewBenchStore(cfg.RedisAddr, cfg.RedisPassword, redisDB)
+
+	err = rdb.DeleteAllBenches(ctx)
+	if err != nil {
+		txn.NoticeError(err)
+		log.Printf("error deleting all benches: %v", err)
+		return
+	}
+
+	err = rdb.StoreBenches(ctx, benches)
+	if err != nil {
+		txn.NoticeError(err)
+		log.Printf("error storing benches: %v", err)
+		return
+	}
+
+	msg := fmt.Sprintf("Successfully updated %d benches 🪑", len(benches))
+	err = sendMessage(ctx, b, update.Message.Chat.ID, msg)
+	if err != nil {
+		txn.NoticeError(err)
+		log.Printf("error sending message: %v", err)
+		return
 	}
 }

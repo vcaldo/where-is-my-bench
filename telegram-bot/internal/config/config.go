@@ -10,7 +10,8 @@ import (
 
 type Config struct {
 	// Bot settings
-	TelegramToken string `json:"token"`
+	TelegramToken     string `json:"token"`
+	BenchesDatasetURL string `json:"benches_dataset_url"`
 
 	// Redis settings
 	RedisAddr     string `json:"redis_addr"`
@@ -30,6 +31,7 @@ func LoadConfig() (*Config, error) {
 
 	config := &Config{
 		TelegramToken:      os.Getenv("TELEGRAM_BOT_TOKEN"),
+		BenchesDatasetURL:  getEnvOrDefault("BENCHES_DATASET_URL", "https://opendata-ajuntament.barcelona.cat/resources/bcn/Mobiliari_Urba/Infraestruc_Mobiliari_Urba_Bancs.json"),
 		RedisAddr:          getEnvOrDefault("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:      os.Getenv("REDIS_PASSWORD"),
 		RedisDB:            getEnvOrDefault("REDIS_DB", "0"),
