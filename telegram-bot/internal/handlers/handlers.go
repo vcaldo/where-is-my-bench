@@ -4,15 +4,19 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
-	"strings"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/vcaldo/where-is-my-bench/telegram-bot/internal/config"
 	"github.com/vcaldo/where-is-my-bench/telegram-bot/internal/storage/redis"
+	"github.com/vcaldo/where-is-my-bench/telegram-bot/pkg/bench"
+	"github.com/vcaldo/where-is-my-bench/telegram-bot/pkg/maps"
 )
+
+const searchRadius float64 = 250
 
 func Handler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	switch {
@@ -29,13 +33,11 @@ func startHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	segment := txn.StartSegment("command.start")
 	defer segment.End()
 
-	msgCat := "Hola! Sóc un bot que et pot ajudar a trobar el teu banc a Barcelona.\nEnvia'm la teva ubicació i jo faré la resta."
-	magEs := "¡Hola! Soy un bot que puede ayudarte a encontrar tu banco en Barcelona.\nEnvíame tu ubicación y haré el resto."
-	msgEn := "Hello! I'm a bot that can help you find your bench in Barcelona.\nJust send me your location and I'll do the rest. "
-	msg := fmt.Sprintf("%s\n\n%s\n\n%s\n\n🏃‍♂️‍➡️🪑", msgCat, magEs, msgEn)
+	msg := "Hello! I'm a bot that can help you find your bench in Barcelona.\nJust send me your location and I'll do the rest. "
+	msgFmt := fmt.Sprintf("%s\n\n🏃‍♂️‍➡️🪑", msg)
 
 	txn.AddAttribute("message_type", "welcome")
-	err := sendMessage(ctx, b, update.Message.Chat.ID, msg)
+	err := sendMessage(ctx, b, update.Message.Chat.ID, msgFmt)
 	if err != nil {
 		txn.NoticeError(err)
 		log.Printf("error sending message: %v", err)
@@ -57,26 +59,55 @@ func locationHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	redisDB, _ := strconv.Atoi(cfg.RedisDB)
 	rdb := redis.NewBenchStore(cfg.RedisAddr, cfg.RedisPassword, redisDB)
 
-	benches, err := rdb.FindNearby(ctx, update.Message.Location.Latitude, update.Message.Location.Longitude, 100)
+	benches, err := rdb.FindNearby(ctx, update.Message.Location.Latitude, update.Message.Location.Longitude, searchRadius)
 	if err != nil {
 		txn.NoticeError(err)
 		log.Printf("error finding benches: %v", err)
 		return
 	}
 
-	var nearbyBenches []string
-	for _, b := range benches {
+	benchesNearby := make([]bench.Bench, len(benches))
+	for i, b := range benches {
 		bench, err := rdb.GetBenchByID(ctx, b.GisID)
 		if err != nil {
-			txn.NoticeError(err)
-			log.Printf("error getting bench by id: %v", err)
-			return
+			log.Fatalf("error getting bench by id: %v", err)
 		}
-
-		nearbyBenches = append(nearbyBenches, fmt.Sprintf("Bench at %s, %s", bench.StreetName, bench.StreetNumber))
+		benchesNearby[i] = *bench
 	}
-	msg := fmt.Sprintf("I found %d benches near you:\n\n%s", len(nearbyBenches), strings.Join(nearbyBenches, "\n"))
 
-	sendMessage(ctx, b, update.Message.Chat.ID, "🪑")
-	sendMessage(ctx, b, update.Message.Chat.ID, msg)
+	mg := maps.NewMapGenerator
+	imgPath, err := mg().GenerateMap(ctx, update.Message.Location.Latitude, update.Message.Location.Longitude, searchRadius, benchesNearby)
+	if err != nil {
+		txn.NoticeError(err)
+		log.Printf("error generating map: %v", err)
+		return
+	}
+
+	img, err := os.ReadFile(imgPath)
+	if err != nil {
+		txn.NoticeError(err)
+		log.Printf("error reading image file: %v", err)
+		return
+	}
+
+	msg := fmt.Sprintf("I found %d benches 🪑 in a %.0f m radius near you:", len(benchesNearby), searchRadius)
+	err = sendMessage(ctx, b, update.Message.Chat.ID, msg)
+	if err != nil {
+		txn.NoticeError(err)
+		log.Printf("error sending message: %v", err)
+		return
+	}
+
+	err = sendImage(ctx, b, update.Message.Chat.ID, img)
+	if err != nil {
+		txn.NoticeError(err)
+		log.Printf("error sending image: %v", err)
+		return
+	}
+
+	err = removeImage(ctx, imgPath)
+	if err != nil {
+		txn.NoticeError(err)
+		log.Printf("error removing image: %v", err)
+	}
 }

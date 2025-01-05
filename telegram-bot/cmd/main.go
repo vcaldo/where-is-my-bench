@@ -46,13 +46,10 @@ func main() {
 
 	opts := []bot.Option{
 		bot.WithDefaultHandler(func(ctx context.Context, b *bot.Bot, update *models.Update) {
-			// Create new transaction for each update
 			updateTxn := nrApp.StartTransaction("bot_update")
 			updateTxn.AddAttribute("update_type", "message")
-
 			updateCtx := newrelic.NewContext(ctx, updateTxn)
 			defer updateTxn.End()
-
 			handlers.Handler(updateCtx, b, update)
 		}),
 	}
@@ -65,21 +62,32 @@ func main() {
 	}
 	segment.End()
 
+	// Start bot in goroutine
+	errChan := make(chan error, 1)
 	go func() {
+		log.Println("Bot started successfully")
 		b.Start(ctx)
-		cancel()
 	}()
 
-	log.Println("Shutdown signal received, initiating graceful shutdown...")
+	// Wait for shutdown signal or error
+	select {
+	case <-sigChan:
+		log.Println("Shutdown signal received, initiating graceful shutdown...")
+	case err := <-errChan:
+		log.Printf("Bot error: %v, initiating shutdown...", err)
+	}
 
+	// Graceful shutdown
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), nrShutdownTimeout)
 	defer shutdownCancel()
 
 	b.Close(shutdownCtx)
+	log.Println("Bot shutdown initiated")
 	log.Println("Bot shutdown complete")
 
 	if nrApp != nil {
 		nrApp.Shutdown(nrShutdownTimeout)
+		log.Println("NewRelic shutdown complete")
 	}
 }
 
