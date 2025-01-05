@@ -62,6 +62,11 @@ func (s *BenchStore) StoreBenches(ctx context.Context, benches []bench.Bench) er
 	return err
 }
 
+func (s *BenchStore) DeleteAllBenches(ctx context.Context) error {
+	_, err := s.rdb.Del(ctx, benchesKey).Result()
+	return err
+}
+
 func (s *BenchStore) FindNearby(ctx context.Context, lat, lon float64, radiusMeters float64) ([]bench.Bench, error) {
 	locs, err := s.rdb.GeoRadius(ctx, benchesKey, lon, lat, &redis.GeoRadiusQuery{
 		Radius: radiusMeters,
